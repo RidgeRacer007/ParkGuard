@@ -1,0 +1,5 @@
+{
+  "demo-node": {"name":"Demo node","building":"Mumbai Demo Garage","floor":"B1","bay":"A-01","latitude":19.0760,"longitude":72.8777,"neighbors":["bay-a"]},
+  "bay-a": {"name":"Bay A","building":"Mumbai Demo Garage","floor":"B1","bay":"A-02","latitude":19.0761,"longitude":72.8778,"neighbors":["demo-node","bay-b"]},
+  "bay-b": {"name":"Bay B","building":"Mumbai Demo Garage","floor":"B1","bay":"A-03","latitude":19.0762,"longitude":72.8779,"neighbors":["bay-a"]}
+}

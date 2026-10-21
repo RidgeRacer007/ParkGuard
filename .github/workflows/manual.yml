@@ -1,0 +1,13 @@
+name: Manual deploy
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Built GHCR image tag
+        required: true
+        default: latest
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Set up a trusted cluster deployment runner and KUBECONFIG secret before using this workflow."

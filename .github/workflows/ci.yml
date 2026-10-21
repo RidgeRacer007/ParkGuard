@@ -1,0 +1,55 @@
+name: ParkGuard CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+  packages: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -r requirements.txt pytest
+      - run: pytest -q
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with: {scan-type: fs, scan-ref: ., severity: HIGH,CRITICAL, exit-code: '1'}
+  image:
+    needs: [test, scan]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+  deploy:
+    needs: image
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Configure cluster access
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          test -n "$KUBECONFIG_B64"
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+      - run: kubectl apply -k k8s/overlays/prod
+      - run: kubectl -n parkguard set image deployment/api api=ghcr.io/${{ github.repository }}:${{ github.sha }}
+      - run: kubectl -n parkguard set image cronjob/nightly-retrain train=ghcr.io/${{ github.repository }}:${{ github.sha }}

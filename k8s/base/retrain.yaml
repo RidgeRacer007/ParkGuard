@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata: {name: nightly-retrain, namespace: parkguard}
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: train
+              image: parkguard-api:local
+              command: [python, -m, parkguard.ai.train, --generate]
+              resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}

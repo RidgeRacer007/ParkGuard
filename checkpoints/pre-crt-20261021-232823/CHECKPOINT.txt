@@ -1,0 +1,5 @@
+Pre-CRT website checkpoint
+Created before applying the CRT green theme.
+
+Restores the pre-theme dashboard by copying this checkpoint's web folder back to the project web folder and config/nodes.json back to project config/nodes.json.
+Contains the complete web directory, including assets, plus the current demo node configuration.

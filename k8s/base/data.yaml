@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: mongo, namespace: parkguard}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: mongo}}
+  template:
+    metadata: {labels: {app: mongo}}
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports: [{containerPort: 27017}]
+          volumeMounts: [{name: data, mountPath: /data/db}]
+          resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
+      volumes: [{name: data, persistentVolumeClaim: {claimName: mongo-pvc}}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: mongo-pvc, namespace: parkguard}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 5Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: mongo, namespace: parkguard}
+spec:
+  selector: {app: mongo}
+  ports: [{port: 27017, targetPort: 27017}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: minio, namespace: parkguard}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: minio}}
+  template:
+    metadata: {labels: {app: minio}}
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          ports: [{containerPort: 9000}]
+          envFrom: [{secretRef: {name: parkguard-secrets}}]
+          volumeMounts: [{name: data, mountPath: /data}]
+          resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
+      volumes: [{name: data, persistentVolumeClaim: {claimName: minio-pvc}}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: minio-pvc, namespace: parkguard}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 5Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: minio, namespace: parkguard}
+spec:
+  selector: {app: minio}
+  ports: [{port: 9000, targetPort: 9000}]

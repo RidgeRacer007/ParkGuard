@@ -4,3 +4,10 @@ __pycache__/
 *.py[cod]
 data/photos/
 parkguard/ai/model.joblib
+.cache/
+.pio-cache/
+.pio-core/
+.pio-packages/
+.pio-platforms/
+*.log
+
