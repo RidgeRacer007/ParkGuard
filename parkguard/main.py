@@ -21,7 +21,15 @@ try:
     model_path=os.getenv('PARKGUARD_MODEL_PATH',str(ROOT/'parkguard/ai/model.joblib'))
     if Path(model_path).exists(): model=joblib.load(model_path)
 except Exception: model=None
-app=FastAPI(title='ParkGuard API',version='1.0.0'); app.mount('/static',StaticFiles(directory=ROOT/'web'),name='static')
+app=FastAPI(title='ParkGuard API',version='1.0.0'); app.mount('/static',StaticFiles(directory=ROOT/'web'),name='static'); app.mount('/assets',StaticFiles(directory=ROOT/'web/assets'),name='assets')
+@app.get('/style.css')
+def style():
+    from fastapi.responses import FileResponse
+    return FileResponse(ROOT/'web/style.css')
+@app.get('/app.js')
+def script():
+    from fastapi.responses import FileResponse
+    return FileResponse(ROOT/'web/app.js')
 mongo_collection=None; object_store=None
 
 @app.on_event('startup')

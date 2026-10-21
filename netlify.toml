@@ -1,2 +1,8 @@
 [build]
   publish = "web"
+
+[[redirects]]
+  from = "/static/*"
+  to = "/:splat"
+  status = 200
+  force = true

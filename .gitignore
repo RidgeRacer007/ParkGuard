@@ -10,4 +10,5 @@ parkguard/ai/model.joblib
 .pio-packages/
 .pio-platforms/
 *.log
+.vscode/
 
