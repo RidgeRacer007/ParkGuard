@@ -73,9 +73,16 @@ def connect_optional_services():
     global mongo_collection, object_store
     try:
         from pymongo import MongoClient
-        client=MongoClient(os.getenv('MONGO_URI',''),serverSelectionTimeoutMS=700)
-        client.admin.command('ping'); mongo_collection=client[os.getenv('MONGO_DB','parkguard')]['events']
-    except Exception: mongo_collection=None
+        mongo_uri = os.getenv('MONGO_URI', '')
+        if mongo_uri:
+            # 3000ms timeout accommodates cloud MongoDB Atlas TLS/DNS handshakes
+            client = MongoClient(mongo_uri, serverSelectionTimeoutMS=3000)
+            client.admin.command('ping')
+            mongo_collection = client[os.getenv('MONGO_DB', 'parkguard')]['events']
+            logging.getLogger("parkguard").info("Connected to MongoDB successfully")
+    except Exception as e:
+        logging.getLogger("parkguard").warning("MongoDB connection skipped/failed: %s", e)
+        mongo_collection = None
     try:
         from minio import Minio
         endpoint=os.getenv('MINIO_ENDPOINT','');

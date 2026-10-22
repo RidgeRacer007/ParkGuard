@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: parkguard-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn parkguard.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    region: singapore
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MONGO_DB
+        value: parkguard
+      - key: PARKGUARD_DEVICE_KEYS
+        value: '{"demo-node":"demo-key-change-me"}'
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_BUCKET
+        value: parkguard-photos
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
