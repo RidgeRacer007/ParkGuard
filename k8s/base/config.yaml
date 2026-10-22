@@ -6,6 +6,10 @@ data:
   MONGO_DB: parkguard
   MINIO_ENDPOINT: minio:9000
   MINIO_BUCKET: parkguard-photos
+  # OpenTelemetry — points to the cluster-internal OTLP collector (gRPC).
+  # Remove or leave empty to disable tracing.
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_SERVICE_NAME: parkguard-api
 ---
 apiVersion: v1
 kind: Secret

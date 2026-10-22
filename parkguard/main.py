@@ -1,4 +1,4 @@
-import os, json, time, hashlib, uuid, base64, asyncio
+import os, json, time, hashlib, uuid, base64, asyncio, logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from collections import defaultdict, deque
@@ -9,6 +9,34 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .ai.classifier import classify, image_check, RollingBaseline
 from .escalation import Escalator
+
+# ── OpenTelemetry tracing (gracefully disabled if SDK not installed) ──────────
+_otel_enabled = False
+try:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+    _otel_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+    if _otel_endpoint:
+        _provider = TracerProvider(
+            resource=Resource.create({SERVICE_NAME: "parkguard-api"})
+        )
+        _provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=_otel_endpoint))
+        )
+        trace.set_tracer_provider(_provider)
+        _otel_enabled = True
+        logging.getLogger("parkguard").info("OpenTelemetry tracing enabled → %s", _otel_endpoint)
+    else:
+        logging.getLogger("parkguard").info(
+            "OpenTelemetry tracing disabled (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)"
+        )
+except ImportError:
+    pass  # SDK not installed — tracing silently skipped
 
 ROOT=Path(__file__).resolve().parent.parent
 NODES=json.loads((ROOT/'config/nodes.json').read_text())
@@ -22,6 +50,14 @@ try:
     if Path(model_path).exists(): model=joblib.load(model_path)
 except Exception: model=None
 app=FastAPI(title='ParkGuard API',version='1.0.0'); app.mount('/static',StaticFiles(directory=ROOT/'web'),name='static'); app.mount('/assets',StaticFiles(directory=ROOT/'web/assets'),name='assets')
+
+# Instrument FastAPI with OpenTelemetry if the SDK is available
+if _otel_enabled:
+    try:
+        FastAPIInstrumentor.instrument_app(app)
+    except Exception:
+        pass
+
 @app.get('/style.css')
 def style():
     from fastapi.responses import FileResponse

@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: parkguard
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: otel-collector}}
+  template:
+    metadata: {labels: {app: otel-collector}}
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.113.0
+          args: ["--config=/etc/otel/config.yaml"]
+          ports:
+            - {containerPort: 4317, name: otlp-grpc}
+            - {containerPort: 4318, name: otlp-http}
+            - {containerPort: 8888,  name: metrics}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otel
+      volumes:
+        - name: otel-config
+          configMap: {name: otel-collector-config}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: parkguard
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:  {endpoint: "0.0.0.0:4317"}
+          http:  {endpoint: "0.0.0.0:4318"}
+
+    processors:
+      batch:
+        timeout: 5s
+
+    exporters:
+      # Export traces to Grafana's Tempo or simply log them for now.
+      # Replace with a real Tempo / Jaeger endpoint when available.
+      debug:
+        verbosity: normal
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [debug]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: parkguard
+spec:
+  selector: {app: otel-collector}
+  ports:
+    - {name: otlp-grpc, port: 4317, targetPort: 4317}
+    - {name: otlp-http, port: 4318, targetPort: 4318}
+    - {name: metrics,   port: 8888, targetPort: 8888}

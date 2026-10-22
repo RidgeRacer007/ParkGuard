@@ -3,6 +3,7 @@ on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
   packages: write
+  security-events: write   # needed for Trivy SARIF upload
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -12,14 +13,24 @@ jobs:
         with: {python-version: '3.11'}
       - run: pip install -r requirements.txt pytest
       - run: pytest -q
-  scan:
+
+  # ── Trivy: filesystem scan (dependencies + IaC) ──────────────────────────
+  trivy-fs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.28.0
-        with: {scan-type: fs, scan-ref: ., severity: HIGH,CRITICAL, exit-code: '1'}
+      - name: Trivy — filesystem scan (HIGH/CRITICAL CVEs)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table
+
+  # ── Trivy: Docker image scan (runs after image is built) ─────────────────
   image:
-    needs: [test, scan]
+    needs: [test, trivy-fs]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -36,6 +47,24 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      # Scan the built image and upload results to GitHub Security tab
+      - name: Trivy — container image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          format: sarif
+          output: trivy-image-results.sarif
+          exit-code: '0'   # report only; don't block deploy on image CVEs
+      - name: Upload Trivy image results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image
+
   deploy:
     needs: image
     if: github.event_name == 'workflow_dispatch'

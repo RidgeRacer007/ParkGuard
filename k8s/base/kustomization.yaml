@@ -6,6 +6,8 @@ resources:
   - api.yaml
   - data.yaml
   - grafana.yaml
+  - loki.yaml
+  - otel-collector.yaml
   - ingress.yaml
   - networkpolicy.yaml
   - retrain.yaml
